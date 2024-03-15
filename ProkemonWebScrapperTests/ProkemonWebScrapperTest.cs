@@ -1,8 +1,9 @@
-using HtmlAgilityPack;
-using Microsoft.VisualStudio.TestPlatform.TestHost;
 using Moq;
+using HtmlAgilityPack;
 using PokemonWebScrapper;
-using System.Xml;
+using PokemonWebScrapper.Extra;
+using PokemonWebScrapper.Adapters;
+using System.Linq;
 
 namespace ProkemonWebScrapperTests;
 
@@ -15,12 +16,19 @@ public class ProkemonWebScrapperTests
         // Arrange
         var mockWeb = new Mock<HtmlWeb>();
         var mockDocument = new Mock<HtmlDocument>();
-        var mockNode1 = new Mock<HtmlNode>();
-        var mockNode2 = new Mock<HtmlNode>();
-        var mockProductHTMLElements = new List<HtmlNode> { mockNode1.Object, mockNode2.Object };
+        var mockProductHTMLElements = new List<IHtmlNode>();
 
+        // Simular instancias de IHtmlNode utilizando HtmlNodeAdapter
+        var mockNode1 = new Mock<IHtmlNode>();
+        mockProductHTMLElements.Add(mockNode1.Object);
+        var mockNode2 = new Mock<IHtmlNode>();
+        mockProductHTMLElements.Add(mockNode2.Object);
+
+        // Configurar mockDocument para devolver mockProductHTMLElements cuando se llame a DocumentNode.QuerySelectorAll
+        mockDocument.Setup(doc => doc.DocumentNode.QuerySelectorAll("li.product")).Returns((IList<HtmlNode>)mockProductHTMLElements);
+
+        // Configurar mockWeb para devolver mockDocument cuando se llame a Load
         mockWeb.Setup(web => web.Load(It.IsAny<string>())).Returns(mockDocument.Object);
-        mockDocument.Setup(doc => doc.DocumentNode.QuerySelectorAll("li.product")).Returns(mockProductHTMLElements);
 
         // Act
         WebScrapper.Scraper();

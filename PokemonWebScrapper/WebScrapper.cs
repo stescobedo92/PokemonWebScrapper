@@ -1,9 +1,25 @@
 ﻿using CsvHelper;
 using HtmlAgilityPack;
+using PokemonWebScrapper.Adapters;
+using PokemonWebScrapper.Extra;
 using PokemonWebScrapper.Model;
 using System.Globalization;
 
 namespace PokemonWebScrapper;
+
+public static class HtmlNodeExtensions
+{
+    public static string GetAttributeValue(this IHtmlNode htmlNode, string attributeName, string defaultValue = "")
+    {
+        if (htmlNode == null)
+        {
+            return defaultValue;
+        }
+
+        var attribute = htmlNode.QuerySelector(attributeName);
+        return attribute != null ? attribute.InnerText : defaultValue;
+    }
+}
 
 public class WebScrapper
 {
@@ -24,10 +40,12 @@ public class WebScrapper
         var pokemonProducts = new List<PokemonProduct>();
 
         // selecting all HTML product elements from the current page 
-        var productHTMLElements = document.DocumentNode.QuerySelectorAll("li.product");
+        var productHTMLElements = document.DocumentNode.QuerySelectorAll("li.product")
+                                                   .Select(node => new HtmlNodeAdapter(node))
+                                                   .ToList();
 
-        pokemonProducts = ProductHtmlElements(productHTMLElements);
-        ExportDataToCsv(pokemonProducts: pokemonProducts);
+        pokemonProducts.AddRange(ProductHtmlElements(productHTMLElements));
+        ExportDataToCsv(pokemonProducts);
     }
 
     /// <summary>
@@ -39,19 +57,25 @@ public class WebScrapper
     /// This method takes a collection of HTML elements representing Pokemon products and extracts relevant information such as URL, image, name, and price.
     /// It returns a list of PokemonProduct objects containing this information.
     /// </remarks>
-    /// <seealso cref="HtmlNode"/>
+    /// <seealso cref="IHtmlNode"/>
     /// <seealso cref="PokemonProduct"/>
-    private static List<PokemonProduct>? ProductHtmlElements(IList<HtmlNode>? productHTMLElements)
+    private static IEnumerable<PokemonProduct> ProductHtmlElements(List<HtmlNodeAdapter> productHTMLElements)
     {
+        if (productHTMLElements == null)
+            return new List<PokemonProduct>();
+
         List<PokemonProduct> pokemonProducts = new();
 
-        pokemonProducts.AddRange(from productHTMLElement in productHTMLElements
-                                 let url = HtmlEntity.DeEntitize(productHTMLElement.QuerySelector("a").Attributes["href"].Value)
-                                 let image = HtmlEntity.DeEntitize(productHTMLElement.QuerySelector("img").Attributes["src"].Value)
-                                 let name = HtmlEntity.DeEntitize(productHTMLElement.QuerySelector("h2").InnerText)
-                                 let price = HtmlEntity.DeEntitize(productHTMLElement.QuerySelector(".price").InnerText)
-                                 let pokemonProduct = new PokemonProduct() { Url = url, Image = image, Name = name, Price = price }
-                                 select pokemonProduct);
+        foreach (var productHTMLElement in productHTMLElements)
+        {
+            var url = HtmlEntity.DeEntitize(productHTMLElement.QuerySelector("a")?.GetAttributeValue("href") ?? "");
+            var image = HtmlEntity.DeEntitize(productHTMLElement.QuerySelector("img")?.GetAttributeValue("src") ?? "");
+            var name = HtmlEntity.DeEntitize(productHTMLElement.QuerySelector("h2")?.InnerText ?? "");
+            var price = HtmlEntity.DeEntitize(productHTMLElement.QuerySelector(".price")?.InnerText ?? "");
+
+            var pokemonProduct = new PokemonProduct() { Url = url, Image = image, Name = name, Price = price };
+            pokemonProducts.Add(pokemonProduct);
+        }
 
         return pokemonProducts;
     }
