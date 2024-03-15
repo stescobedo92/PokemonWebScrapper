@@ -2,6 +2,7 @@
 using HtmlAgilityPack;
 using PokemonWebScrapper.Model;
 using System.Globalization;
+using System.Linq;
 
 namespace PokemonWebScrapper
 {
@@ -50,17 +51,13 @@ namespace PokemonWebScrapper
         {
             List<PokemonProduct> pokemonProducts = new();
 
-            foreach (var productHTMLElement in productHTMLElements)
-            {
-                var url = HtmlEntity.DeEntitize(productHTMLElement.QuerySelector("a").Attributes["href"].Value);
-                var image = HtmlEntity.DeEntitize(productHTMLElement.QuerySelector("img").Attributes["src"].Value);
-                var name = HtmlEntity.DeEntitize(productHTMLElement.QuerySelector("h2").InnerText);
-                var price = HtmlEntity.DeEntitize(productHTMLElement.QuerySelector(".price").InnerText);
-
-                var pokemonProduct = new PokemonProduct() { Url = url, Image = image, Name = name, Price = price };
-
-                pokemonProducts.Add(pokemonProduct);
-            }
+            pokemonProducts.AddRange(from productHTMLElement in productHTMLElements
+                                     let url = HtmlEntity.DeEntitize(productHTMLElement.QuerySelector("a").Attributes["href"].Value)
+                                     let image = HtmlEntity.DeEntitize(productHTMLElement.QuerySelector("img").Attributes["src"].Value)
+                                     let name = HtmlEntity.DeEntitize(productHTMLElement.QuerySelector("h2").InnerText)
+                                     let price = HtmlEntity.DeEntitize(productHTMLElement.QuerySelector(".price").InnerText)
+                                     let pokemonProduct = new PokemonProduct() { Url = url, Image = image, Name = name, Price = price }
+                                     select pokemonProduct);
 
             return pokemonProducts;
         }
